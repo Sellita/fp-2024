@@ -1,0 +1,11 @@
+<car_garage> ::= <car_list> | <operations>
+<car_list> ::= <car> | <car> <car_list>
+<car> ::= <brand> <model> <year> <color>
+<brand> ::= <String>
+<model> ::= <String>
+<year> ::= <Integer>
+<color> ::= <String>
+
+<operations> ::= <add_car> | <remove_car> | <get_list>
+
+
