@@ -8,4 +8,6 @@
 
 <operations> ::= <add_car> | <remove_car> | <get_list>
 
-
+<add_car> ::= "add_car" <car>
+<remove_car ::= "remove_car" <car>
+<get_list> ::= "get_list" <car>
