@@ -1,13 +1,13 @@
 <car_garage> ::= <car_list> | <operations>
 <car_list> ::= <car> | <car> <car_list>
-<car> ::= <brand> <model> <year> <color>
+<car> ::= "car" <brand> <model> <year> <color>
+
 <brand> ::= <String>
 <model> ::= <String>
 <year> ::= <Integer>
 <color> ::= <String>
 
-<operations> ::= <add_car> | <remove_car> | <get_list>
+<operations> ::= <remove_car> | <get_list>
 
-<add_car> ::= "add_car" <car>
-<remove_car ::= "remove_car" <car>
-<get_list> ::= "get_list" <car> 
+<remove_car ::= "remove_car" <car_id>
+<get_list> ::= "get_list" 
