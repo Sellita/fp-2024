@@ -17,8 +17,12 @@ unitTests = testGroup "Lib1 tests"
       null Lib1.completions @?= False,
     testCase "get_list command test" $
       Lib2.parseQuery "get_list" @?= Right Lib2.GetCarList,
+    testCase "get_list with not needed argumets fail test" $
+      Lib2.parseQuery "get_list " @?= Right Lib2.GetCarList,
     testCase "Parsing Car should return correct Car" $
       Lib2.parseQuery "car BMW XM 2020 Black" @?= Right (Lib2.Car "BMW" "XM" 2020 "Black"),
+    testCase "Color not found test" $
+      Lib2.parseQuery "car BMW XM 2020" @?= Left "Color is not found",
     testCase "Parsing Car with different input" $
       Lib2.parseQuery "car Audi A4 2019 White" @?= Right (Lib2.Car "Audi" "A4" 2019 "White"),
     testCase "Parsing Car with incorrect date input" $

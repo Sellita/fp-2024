@@ -11,6 +11,7 @@ module Lib2
 
 import qualified Data.Char as C -- todo remove me
 import qualified Data.List as L -- todo remove me
+import GHC.Conc (par)
 
 
 type Parser a = String -> Either String (a, String)
@@ -108,8 +109,10 @@ parseVal a = \input ->
 parseGetList :: Parser Query
 parseGetList input =
     case parseWord' input of
-        Right("get_list", "") -> Right (GetCarList, "")
-        Right("get_list", rest) -> Left ("Unexpected input ending: " ++ rest)
+        Right("get_list", rest) -> 
+            case parseEmptyString rest of 
+                Right (_, "") -> Right (GetCarList, "")
+                _ -> Left ("Unexpected input ending: " ++ rest)
         _ -> Left ("Unknown command: " ++ input)
 
 -- <remove_car>::= "remove_car" <car_id>
@@ -131,18 +134,6 @@ parseRemoveCarCommand input =
         Right ("remove_car", rest) -> Right ("remove_car", rest)
         Right (command, _) -> Left ("Unknown command " ++ command)
         Left e -> Left e
-
-
-
-
-
-
-
---extractQuery :: Parser  -> Queryф
---extractQuery a = \input
---    case a input of
- --       Right (q, s) -> q
-        --Left e1 -> e1
 
 -- | An entity which represents your program's state.
 -- Currently it has no constructors but you can introduce
@@ -253,6 +244,10 @@ parseWord' input = parseWithRule isLetterOrDash input
 parseUntilSpace :: Parser String
 parseUntilSpace input = parseWithRule isNotWhiteSpace input
 
+parseEmptyString :: Parser String
+parseEmptyString [] = Right ("", "")
+parseEmptyString input = parseWithRule isWhiteSpace input
+
 parseWithRule :: (Char->Bool) -> Parser String
 parseWithRule f input =
     let letters = L.takeWhile f input
@@ -266,3 +261,6 @@ isLetterOrDash c = C.isLetter c || c == '_'
 
 isNotWhiteSpace :: Char -> Bool
 isNotWhiteSpace c = c /= ' '
+
+isWhiteSpace :: Char -> Bool
+isWhiteSpace c = c == ' '
