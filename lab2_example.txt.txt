@@ -1,0 +1,24 @@
+stack build
+stack run -- fp2024-two
+
+//Adding a cars in garage
+car Audi A4 2019 White
+car BMW x5 1999 Gray
+car Toyota Prius 2010 Yellow
+car Toyota Rav4 2019 Blue
+
+//retrieving list of cars
+get_list
+
+//Trying add a car with incorrect year
+car Smart Roadster 2025 White
+//receiving error of incorrect year
+
+//checking that car was not added
+get_list
+
+//removing Toyota rav4
+remove_car 3
+
+//ensure that car was removed
+get_list

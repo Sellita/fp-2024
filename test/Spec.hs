@@ -15,8 +15,16 @@ unitTests :: TestTree
 unitTests = testGroup "Lib1 tests"
   [ testCase "List of completions is not empty" $
       null Lib1.completions @?= False,
-    testCase "Parsing case 1 - give a better name" $
-      Lib2.parseQuery "" @?= (Left "Some error message"),
-    testCase "Parsing case 2 - give a better name" $
-      Lib2.parseQuery "o" @?= (Left "Some error message")
+    testCase "get_list command test" $
+      Lib2.parseQuery "get_list" @?= Right Lib2.GetCarList,
+    testCase "Parsing Car should return correct Car" $
+      Lib2.parseQuery "car BMW XM 2020 Black" @?= Right (Lib2.Car "BMW" "XM" 2020 "Black"),
+    testCase "Parsing Car with different input" $
+      Lib2.parseQuery "car Audi A4 2019 White" @?= Right (Lib2.Car "Audi" "A4" 2019 "White"),
+    testCase "Parsing Car with incorrect date input" $
+      Lib2.parseQuery "car Buic A90 1880 White" @?= Left "Year is incorrect",    
+    testCase "Parsing invalid query should return error" $
+      Lib2.parseQuery "invalid query" @?= Left "Command not found: invalid query",
+    testCase "Parsing empty query should return error" $
+      Lib2.parseQuery "" @?= Left "Nothing to parse"
   ]
