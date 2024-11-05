@@ -11,8 +11,6 @@ module Lib2
 
 import qualified Data.Char as C -- todo remove me
 import qualified Data.List as L -- todo remove me
-import GHC.Conc (par)
-
 
 type Parser a = String -> Either String (a, String)
 type Car = (String, String, Integer, String)
@@ -29,7 +27,8 @@ type Brand = String
 data Query =
   GetCarList |
   RemoveCar Integer|
-  Car String String Integer String
+  Car String String Integer String |
+  Debug
 
 -- | The instances are needed basically for tests
 instance Eq Query where
@@ -42,6 +41,7 @@ instance Show Query where
   show GetCarList = "GetCarList"
   show (RemoveCar i) = "RemoveCar " ++ show i
   show (Car brand model year color) = "Car " ++ brand ++ " " ++ model ++ " " ++ show year ++ " " ++ color
+  show Debug = "Debug"
 
 -- | Parses user's input.
 -- The function must have tests.
@@ -49,16 +49,28 @@ instance Show Query where
 
 parseQuery :: String -> Either String Query
 parseQuery "" = Left "Nothing to parse"
-parseQuery input = 
-    let 
-        command = parseVal parseWord' input
-    in 
-        case command of
-            Right ("car", _) -> concreteParser parseCar input
-            Right ("get_list", _) -> concreteParser parseGetList input
-            Right ("remove_car", _) -> concreteParser parseRemoveCar input
-            _ -> Left $ "Command not found: " ++ input
+-- parseQuery input = 
+--     let 
+--         command = parseVal parseWord' input
+--     in 
+--         case command of
+--             Right ("car", _) -> concreteParser parseCar input
+--             Right ("get_list", _) -> concreteParser parseGetList input
+--             Right ("remove_car", _) -> concreteParser parseRemoveCar input
+--             _ -> Left $ "Command not found: " ++ input
 
+--or variant
+parseQuery input = concreteParser (parseCar `or2` parseGetList `or2` parseRemoveCar `or2` parseDebug) input
+
+or2 :: Parser a -> Parser a -> Parser a
+or2 a b = \input ->
+   case a input of
+       Right r1 -> Right r1
+       Left e1 ->
+           case b input of
+               Right r2 -> Right r2
+               Left e2 -> Left (e1 ++ ", " ++ e2)
+--
 
 concreteParser :: Parser a -> String -> Either String a
 concreteParser p input =
@@ -69,29 +81,53 @@ concreteParser p input =
 
 -- <car> ::= "car" <brand> <model> <year> <color>
 parseCar :: Parser Query
-parseCar  = \input ->
-    let 
-        command = parseVal parseWord' input
-        brand = parseVal parseBrand (either id snd command)
-        model = parseVal parseModel (either id snd brand)
-        year = parseVal (parseYear 1885 2024) (either id snd model)
-        color = parseVal parseColor (either id snd year)
-    in    
-        case command of
-            Right ("car", _) ->
-                case brand of 
-                    Right (brandValue, _) -> 
-                        case model of
-                            Right (modelValue, _) -> 
-                                case year of
-                                    Right (yearValue, _) -> 
-                                        case color of
-                                            Right (colorValue, _) -> Right (Car brandValue modelValue yearValue colorValue, "")
-                                            Left _ -> Left "Color is not found"
-                                    Left _ -> Left "Year is incorrect"
-                            Left _ -> Left "Model is not found"
-                    Left _ -> Left "Brand is not found"
-            _ -> Left "Command is not car"
+parseCar  = and5 (\_ brandValue modelValue yearValue colorValue -> Car brandValue modelValue yearValue colorValue )
+                (parseVal (parseCommand "car")) 
+                (parseVal parseBrand)
+                (parseVal parseModel) 
+                (parseVal (parseYear 1885 2024))
+                (parseVal parseColor)
+-- parseCar  = \input ->
+--     let 
+--         command = parseVal parseWord' input
+--         brand = parseVal parseBrand (either id snd command)
+--         model = parseVal parseModel (either id snd brand)
+--         year = parseVal (parseYear 1885 2024) (either id snd model)
+--         color = parseVal parseColor (either id snd year)
+--     in    
+--         case command of
+--             Right ("car", _) ->
+--                 case brand of 
+--                     Right (brandValue, _) -> 
+--                         case model of
+--                             Right (modelValue, _) -> 
+--                                 case year of
+--                                     Right (yearValue, _) -> 
+--                                         case color of
+--                                             Right (colorValue, _) -> Right (Car brandValue modelValue yearValue colorValue, "")
+--                                             Left _ -> Left "Color is not found"
+--                                     Left _ -> Left "Year is incorrect"
+--                             Left _ -> Left "Model is not found"
+--                     Left _ -> Left "Brand is not found"
+--             _ -> Left "Command is not car"
+
+and5 :: (a -> b -> c -> d -> e -> f) -> Parser a -> Parser b -> Parser c -> Parser d -> Parser e -> Parser f
+and5 f a b c d e = \input ->
+    case a input of
+        Right (v1, r1) ->
+            case b r1 of
+                Right (v2, r2) ->
+                    case c r2 of
+                        Right (v3, r3) -> 
+                            case d r3 of
+                                Right(v4, r4) ->
+                                    case e r4 of
+                                        Right(v5, r5) -> Right (f v1 v2 v3 v4 v5, r5)
+                                        Left e5 -> Left e5
+                                Left e4 -> Left e4
+                        Left e3 -> Left e3
+                Left e2 -> Left e2
+        Left e1 -> Left e1
 
 parseVal :: Parser a -> Parser a
 parseVal a = \input ->
@@ -112,6 +148,16 @@ parseGetList input =
         Right("get_list", rest) -> 
             case parseEmptyString rest of 
                 Right (_, "") -> Right (GetCarList, "")
+                _ -> Left ("Unexpected input ending: " ++ rest)
+        _ -> Left ("Unknown command: " ++ input)
+
+
+parseDebug :: Parser Query
+parseDebug input =
+    case parseCommand input "debug" of
+        Right(_, rest) -> 
+            case parseEmptyString rest of 
+                Right (_, "") -> Right (Debug, "")
                 _ -> Left ("Unexpected input ending: " ++ rest)
         _ -> Left ("Unknown command: " ++ input)
 
@@ -138,8 +184,9 @@ parseRemoveCarCommand input =
 -- | An entity which represents your program's state.
 -- Currently it has no constructors but you can introduce
 -- as many as needed.
-data State = State CarGarage
+data State = State CarGarage deriving Show
 
+   
 
 -- | Creates an initial program's state.
 -- It is called once when the program starts.
@@ -161,6 +208,7 @@ stateTransition (State garage) (RemoveCar index) =
     case clearResult of
       Left e -> Left e
       Right r -> Right (Just "Car removed", State r)
+stateTransition (State garage) (_) = Right(Just ("Debug" ++ show garage), State garage)
 
 removeCar :: CarGarage -> Integer -> Either String CarGarage
 removeCar [] _ = Left "No cars in the garage"
@@ -226,6 +274,16 @@ parseColor input =
             Right (color, rest) -> Right (color, rest)
             Left e -> Left e
 
+parseCommand :: String -> Parser String
+parseCommand concreteCommand input =
+    let
+        result = parseUntilSpace input
+    in
+        case result of
+            Right (parsedWord, rest) -> 
+                if parsedWord == concreteCommand then Right (concreteCommand, rest)
+                else Left "Wrong command"
+            Left e -> Left e
 
 parseNumber :: Parser Integer
 parseNumber [] = Left "empty input, cannot parse a number"
