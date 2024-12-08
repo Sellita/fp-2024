@@ -1,4 +1,6 @@
 {-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 import Test.Tasty ( TestTree, defaultMain, testGroup )
 import Test.Tasty.HUnit ( testCase, (@?=) )
 import Test.Tasty.QuickCheck as QC
@@ -8,6 +10,7 @@ import Data.Ord
 
 import Lib1 qualified
 import Lib2 qualified
+import qualified Lib3 
 
 main :: IO ()
 main = defaultMain tests
@@ -38,8 +41,18 @@ unitTests = testGroup "Lib1 tests"
   ]
 
 propertyTests :: TestTree
-propertyTests = testGroup "some meaningful name"
+propertyTests = testGroup "Test parse and rollBack"
   [
-    QC.testProperty "sort == sort . reverse" $
-      \list -> sort (list :: [Int]) == sort (reverse list)
+    QC.testProperty "render and parse statment should be the same" $
+      \statement -> Lib3.parseCommand (Lib3.renderStatements (statement :: Lib3.Statements)) == Right (Lib3.StatementCommand statement,"")
   ]
+--renderStatements :: Statements -> String
+--parseStatements :: String -> Either String (Statements, String)
+
+instance Arbitrary Lib3.Statements where
+    arbitrary :: Gen Lib3.Statements
+    arbitrary = oneof [
+      return (Lib3.Batch [Lib2.Car "BMW" "330" 1993 "Gray"]),
+      return (Lib3.Batch [Lib2.Car "BMW" "330" 1993 "Gray", Lib2.Car "VW" "Passat" 2005 "Gray"]),
+      return (Lib3.Batch [Lib2.Car "Audi" "A2" 1992 "Yellow"])
+      ]

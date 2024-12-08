@@ -1,0 +1,17 @@
+stack build
+stack run -- fp2024-three
+
+//Adding a car in garage
+car Audi A4 2019 White
+
+//Adding Bunch cars in garage 
+:paste 
+//copy paste code from begin to end
+Begin
+car BMW x5 1999 Gray
+car Toyota Prius 2010 Yellow
+car Toyota Rav4 2019 Blue
+get_list
+End
+
+

@@ -5,7 +5,11 @@ module Lib2
     ( Query(..),
     parseQuery,
     State(..),
+    CarGarage,
+    Car,
+    Parser,
     emptyState,
+    parseWithRule,
     stateTransition
     ) where
 
@@ -38,10 +42,10 @@ instance Eq Query where
   (==) _ _ = False
 
 instance Show Query where
-  show GetCarList = "GetCarList"
-  show (RemoveCar i) = "RemoveCar " ++ show i
-  show (Car brand model year color) = "Car " ++ brand ++ " " ++ model ++ " " ++ show year ++ " " ++ color
-  show Debug = "Debug"
+  show GetCarList = "get_list"
+  show (RemoveCar i) = "remove_car " ++ show i
+  show (Car brand model year color) = "car " ++ brand ++ " " ++ model ++ " " ++ show year ++ " " ++ color
+  show Debug = "debug"
 
 -- | Parses user's input.
 -- The function must have tests.
