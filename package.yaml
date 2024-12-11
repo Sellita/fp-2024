@@ -86,11 +86,13 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
+    - free
     - fp2024
     - repline
     - lens
     - wreq
     - bytestring
+    - transformers
     - string-conversions
   fp2024-four-server:
     main:                Main.hs

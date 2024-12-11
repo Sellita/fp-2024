@@ -1,0 +1,7 @@
+stack run -- fp2024-four-client
+stack run -- fp2024-four-server
+
+in client side we input in console :
+1 - for each request for command
+2 - for batch request sending
+3 - for test without requests

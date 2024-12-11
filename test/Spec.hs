@@ -10,7 +10,7 @@ import Data.Ord
 
 import Lib1 qualified
 import Lib2 qualified
-import qualified Lib3 
+import qualified Lib3
 
 main :: IO ()
 main = defaultMain tests
@@ -52,7 +52,22 @@ propertyTests = testGroup "Test parse and rollBack"
 instance Arbitrary Lib3.Statements where
     arbitrary :: Gen Lib3.Statements
     arbitrary = oneof [
-      return (Lib3.Batch [Lib2.Car "BMW" "330" 1993 "Gray"]),
-      return (Lib3.Batch [Lib2.Car "BMW" "330" 1993 "Gray", Lib2.Car "VW" "Passat" 2005 "Gray"]),
-      return (Lib3.Batch [Lib2.Car "Audi" "A2" 1992 "Yellow"])
+       Lib3.Batch <$> listOf1 arbitrary
       ]
+
+instance Arbitrary Lib2.Query where
+  arbitrary :: Gen Lib2.Query
+  arbitrary =
+    oneof
+      [ 
+        Lib2.Car <$> genSafeString <*> genSafeString <*> positiveInt <*> genSafeString
+      ]
+
+genSafeChar :: Gen Char
+genSafeChar = elements ['a'..'z']
+
+genSafeString :: Gen String
+genSafeString = listOf1 genSafeChar
+
+positiveInt :: Gen Integer
+positiveInt = arbitrary `suchThat` (> 1885) `suchThat` (< 2024) 

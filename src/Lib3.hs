@@ -1,4 +1,6 @@
 {-# LANGUAGE InstanceSigs #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Redundant lambda" #-}
 module Lib3
     ( stateTransition,
     StorageOp (..),
@@ -11,11 +13,14 @@ module Lib3
     renderStatements,
     ) where
 
+import Control.Monad.Trans.State.Strict (StateT, get, put, runState, runStateT)
+import Control.Monad.Trans.Except (ExceptT, throwE, runExceptT)
 import Control.Concurrent ( Chan )
-import Control.Concurrent.STM(STM, TVar)
+import Control.Concurrent.STM(STM, TVar, readTVar)
 import qualified Lib2
 import Control.Concurrent.Chan (writeChan, newChan)
 
+import Control.Monad.Trans.Class(lift)
 import qualified Data.Char as C 
 import Control.Concurrent.STM.TVar (readTVarIO)
 import Control.Monad.STM (atomically)
@@ -62,11 +67,11 @@ parseCommand :: String -> Either String (Command, String)
 parseCommand "" = Left "Can't parse command from empty string"
 
 parseCommand input = 
-    case parseLine input of
-        Right("load", restLoad) -> Right (LoadCommand, restLoad)
-        Right("save", restSave) -> Right (SaveCommand, restSave)
-        Left err -> Left err
-        Right("Begin", restBegin) -> case parseStatements restBegin
+    case runState (runExceptT parseLine) input of
+        (Right "load", restLoad) -> Right (LoadCommand, restLoad)
+        (Right "save", restSave) -> Right (SaveCommand, restSave)
+        (Left err, _) -> Left err
+        (Right "Begin", restBegin) -> case parseStatements restBegin
             of
                 Right(statements, rest) -> Right (StatementCommand statements, rest)
                 Left err -> Left err
@@ -75,20 +80,32 @@ parseCommand input =
                 Right(statements, rest) -> Right (StatementCommand statements, rest)
                 Left err -> Left err
 
-maybe2 :: (a -> String -> c) -> Lib2.Parser a -> Lib2.Parser String -> Lib2.Parser c
-maybe2 f a b = \input ->
-    case a input of
-        Right (v1, r1) ->
-            case b r1 of
-                Right (v2, r2) -> Right (f v1 "", r2)
-                Left e2 -> Right (f v1 "", r1)
-        Left e1 -> Left e1
+-- maybe2 :: (a -> String -> c) -> Lib2.Parser a -> Lib2.Parser String -> Lib2.Parser c
+-- maybe2 f a b = \input -> 
+--     case a input of
+--         Right (v1, r1) -> Right (f v1 r1, "")
+--         Left e1 -> 
+--             case b input of
+--                 Right (v2, r2) -> Right (f "" r2, "")
+--                 Left e2 -> Left e1
+    -- case notEnter of
+    --     Right (v1, r1) -> Right (f v1 r1, "")
+    --     Left e1 -> 
+    -- case a input of
+    --     Right (v1, r1) ->
+    --         case b r1 of
+    --             Right (v2, r2) -> Right (f v1 "", r2)
+    --             Left e2 -> Right (f v1 "", r1)
+    --     Left e1 -> Left e1
 
 
 parseLine :: Lib2.Parser String
-parseLine = maybe2 (\a _ -> a)
-                (Lib2.parseWithRule isNotEnter) 
-                (Lib2.parseWithRule isEnter)
+parseLine = do 
+    notEnter <- Lib2.parseWithRule isNotEnter
+    _ <- Lib2.maybeParseWithRule isEnter
+    return notEnter
+                -- (Lib2.parseWithRule isNotEnter) 
+                -- (Lib2.parseWithRule isEnter)
     
 
 isNotLetter :: Char -> Bool
@@ -146,11 +163,12 @@ splitToLines p = splitToLines' p []
     where
         splitToLines' :: String -> [String] -> Either String [String]
         splitToLines' p' acc = 
-            case parseLine p' of
-                Left err -> Left err
-                Right (v, "\n") -> Right (acc ++ [v])
-                Right (v, "") -> Right (acc ++ [v])
-                Right (v, res) ->  splitToLines' res (acc ++ [v])
+            case runState (runExceptT parseLine) p' of
+                (Right v, "\n") -> Right (acc ++ [v])
+                (Right v, "") -> Right (acc ++ [v])
+                (Right v, res) -> splitToLines' res (acc ++ [v])
+                (Left err, _) -> Left err
+
             
 
 
@@ -227,22 +245,22 @@ stateTransition state SaveCommand ioChan = do
     return $ Right Nothing
 stateTransition state (StatementCommand statements) _ = 
     case statements of
-        Single s -> do
-            st <- readTVarIO state
+        Single s -> atomically $ do
+            st <- readTVar state
             let newState = Lib2.stateTransition st s
             case newState of
                 Left err -> return $ Left err
                 Right (info, state') -> do
-                    _ <- atomically (writeTVar state state')
+                    _ <- writeTVar state state'
                     return $ Right info
         Batch [] -> return $ Left "No comand found"
-        Batch comands -> do
-            st <- readTVarIO state
+        Batch comands -> atomically $ do
+            st <- readTVar state
             let newState = applyQuerries comands st
             case newState of
                 Left err -> return $ Left err
                 Right (msg, state') -> do
-                    _ <- atomically (writeTVar state state')
+                    _ <- writeTVar state state'
                     return $ Right msg
 
 applyQuerries :: [Lib2.Query] -> Lib2.State -> Either String (Maybe String, Lib2.State)

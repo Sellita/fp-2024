@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Redundant lambda" #-}
 {-# HLINT ignore "Use <$>" #-}
-module Lib2
+module Lib2NewParser
     ( Query(..),
     parseQuery,
     State(..),
@@ -11,7 +11,6 @@ module Lib2
     Parser,
     emptyState,
     parseWithRule,
-    maybeParseWithRule,
     stateTransition
     ) where
 
@@ -25,7 +24,6 @@ import Control.Monad.Trans.State.Strict (StateT, get, put, runState, runStateT)
 import Control.Monad.Trans.Except (ExceptT, throwE, runExceptT)
 import Control.Applicative (Alternative)
 import GHC.Base (empty, Alternative ((<|>)))
-import Debug.Trace (traceShow)
 
 
 
@@ -118,13 +116,9 @@ concreteParser p input =
 parseCar :: Parser Query
 parseCar = do
     _ <- parseCommand "car"
-    _ <- parseChar ' '
     brandValue <- parseBrand
-    _ <- parseChar ' '
     modelValue <- parseModel
-    _ <- parseChar ' '
     yearValue <- parseYear 1885 2024
-    _ <- parseChar ' '
     colorValue <- parseColor
     return $ Car brandValue modelValue yearValue colorValue
 -- parseCar  = and5 (\_ brandValue modelValue yearValue colorValue -> Car brandValue modelValue yearValue colorValue )
@@ -186,7 +180,6 @@ parseVal  = do
 parseGetList :: Parser Query
 parseGetList  = do 
     result <- parseWord'
-    _ <- parseEmptyString
     if(result == "get_list")
         then return $ GetCarList
         else throwE $ "command not found"
@@ -322,14 +315,11 @@ parseColor  = do
 
 parseCommand :: String -> Parser String
 parseCommand concreteCommand = do
-    initialState <- lift get
     res <- parseUntilSpace
-    actualState <- lift get
     if res == concreteCommand
         then return res
-        else do
-            _ <- lift $ put initialState
-            throwE $ "currentState: " ++ actualState ++ " Comand: " ++ concreteCommand ++ " is not found. found:  " ++ res
+        else
+            throwE $ concreteCommand ++ " is not found"
 
 parseNumber :: Parser Integer
 parseNumber = do 
@@ -359,7 +349,7 @@ parseUntilSpace :: Parser String
 parseUntilSpace = parseWithRule isNotWhiteSpace
 
 parseEmptyString :: Parser String
-parseEmptyString = maybeParseWithRule isWhiteSpace
+parseEmptyString = parseWithRule isWhiteSpace
 
 -- parseEmptyString [] = Right ("", "")
 -- parseEmptyString input = parseWithRule isWhiteSpace input
@@ -368,23 +358,13 @@ parseWithRule :: (Char->Bool) -> Parser String
 parseWithRule f = do
     input <- lift get
     case input of 
-        [] -> throwE "empty input"
+        [] -> throwE "Not a number"
         str -> let
                 letters = L.takeWhile f str
                 rest = drop (length letters) str
                 in
                 lift $ put rest >> return letters
 
-maybeParseWithRule :: (Char->Bool) -> Parser String
-maybeParseWithRule f = do
-    input <- lift get
-    case input of 
-        [] -> return ""
-        str -> let
-                letters = L.takeWhile f str
-                rest = drop (length letters) str
-                in
-                lift $ put rest >> return letters
 
 
 isLetterOrDash :: Char -> Bool
